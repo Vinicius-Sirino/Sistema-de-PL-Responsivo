@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDA Containers - Otimizador de Cargas em Containers</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --background: #f8fafc;
+      --foreground: #0f172a;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --muted-foreground: #64748b;
+      --accent: #f1f5f9;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--background);
+      color: var(--foreground);
+      background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Estilização moderna de inputs nas tabelas */
+    .modern-input {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 0.5rem;
+      color: #0f172a;
+      transition: all 0.15s ease;
+    }
+    .modern-input:hover {
+      border-color: #94a3b8;
+      background-color: #ffffff;
+    }
+    .modern-input:focus {
+      outline: none;
+      background-color: #ffffff;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    /* Destaques visuais da tabela Simplex e pivô */
+    .pivot-highlight {
+      background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+      color: #ffffff !important;
+      font-weight: 800 !important;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 10px -2px rgba(245, 158, 11, 0.45);
+    }
+    .entering-col-highlight {
+      background-color: rgba(59, 130, 246, 0.08);
+      border-left: 2px dashed rgba(59, 130, 246, 0.45);
+      border-right: 2px dashed rgba(59, 130, 246, 0.45);
+    }
+    .leaving-row-highlight {
+      background-color: rgba(245, 158, 11, 0.1);
+    }
+  </style>
+</head>
+<body class="antialiased p-4 md:p-8 max-w-7xl mx-auto transition-colors">
+
+  <!-- Topbar / Cabeçalho PDA Containers -->
+  <header class="bg-white border border-slate-200/90 rounded-2xl p-5 mb-6 shadow-sm">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex items-center space-x-3.5">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md shadow-blue-500/20">
+          🚢
+        </div>
+        <div>
+          <div class="flex items-center space-x-2.5">
+            <h1 class="text-lg font-extrabold text-slate-900 tracking-tight">PDA Containers</h1>
+            <span class="text-[11px] uppercase font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              Otimizador de Cargas v2.0
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Planejamento Inteligente de Carregamento de Containers (Cálculo do Maior Lucro via Método Simplex)
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2.5">
+        <button
+          id="btnPreset40ft"
+          class="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-all shadow-sm"
+          title="Preencher com um container padrão de 40 pés High Cube"
+        >
+          <span>✨</span>
+          <span>Carregar Exemplo (Container 40' HC)</span>
+        </button>
+
+        <button
+          id="btnOpenJsonModal"
+          class="flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-all shadow-sm"
+          title="Colar seus dados ou exportar em formato JSON"
+        >
+          <span>📥</span>
+          <span>Importar / Exportar Dados</span>
+        </button>
+
+        <button
+          id="btnSolve"
+          class="flex items-center space-x-2 px-5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transition-all shadow-md shadow-blue-500/25"
+        >
+          <span>⚡</span>
+          <span>Calcular Melhor Combinação</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- Formulários de Entrada de Dados -->
+    <div class="lg:col-span-12 space-y-6">
+
+      <!-- 1. Cargas Candidatas e Lucro -->
+      <div class="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-base">📦</div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="font-bold text-sm md:text-base text-slate-900">
+                  1. Tipos de Carga Disponíveis no Estoque
+                </h2>
+                <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                  Variáveis X<sub>n</sub>
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Informe quanto cada unidade vendida ou transportada gera de lucro líquido para a empresa (Função Objetivo).
+              </p>
+            </div>
+          </div>
+          <button
+            id="btnAddVariable"
+            class="text-xs font-bold px-3.5 py-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-all self-start sm:self-auto"
+          >
+            + Adicionar Outra Carga
+          </button>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
+          <table class="w-full text-left border-collapse text-xs" id="tableVariables">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-600 bg-slate-50/90 uppercase tracking-wider font-semibold text-[11px]">
+                <th class="py-3 px-4 w-24">Código</th>
+                <th class="py-3 px-4">Nome da Carga</th>
+                <th class="py-3 px-4 w-64">Lucro por Unidade (c<sub>j</sub>)</th>
+                <th class="py-3 px-4 w-44">Unidade / Volume</th>
+                <th class="py-3 px-4 w-20 text-center">Remover</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyVariables" class="divide-y divide-slate-200/80 bg-white">
+              <!-- Renderizado via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 2. Limites do Container e Consumo por Carga -->
+      <div class="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-base">⚖️</div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="font-bold text-sm md:text-base text-slate-900">
+                  2. Limites do Container e Gastos de Cada Carga
+                </h2>
+                <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Matriz a<sub>ij</sub> &amp; Folgas S<sub>i</sub>
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Informe a capacidade máxima que o container suporta (peso, volume, amarração) e quanto cada carga consome desse limite.
+              </p>
+            </div>
+          </div>
+          <button
+            id="btnAddConstraint"
+            class="text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-all self-start sm:self-auto"
+          >
+            + Adicionar Outro Limite
+          </button>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
+          <table class="w-full text-left border-collapse text-xs" id="tableConstraints">
+            <thead id="theadConstraints" class="bg-slate-50/90 border-b border-slate-200">
+              <!-- Renderizado via JS -->
+            </thead>
+            <tbody id="tbodyConstraints" class="divide-y divide-slate-200/80 bg-white">
+              <!-- Renderizado via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Resultados e Dashboard de Métricas -->
+    <div class="lg:col-span-12 space-y-6" id="resultsSection">
+      <!-- Cards de Destaque -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Lucro Ótimo Z* -->
+        <div class="bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-2xl p-5 shadow-lg shadow-blue-500/15 relative overflow-hidden">
+          <div class="text-xs uppercase tracking-wider font-semibold text-blue-100 mb-1">
+            Lucro Máximo Possível (Z*)
+          </div>
+          <div class="text-3xl font-extrabold tracking-tight" id="kpiOptimalProfit">
+            R$ 0,00
+          </div>
+          <div class="mt-3 text-xs text-blue-100 flex items-center space-x-1" id="kpiSolverSpeed">
+            <span>✓</span>
+            <span>Pronto para calcular</span>
+          </div>
+        </div>
+
+        <!-- Total de Unidades Carregadas -->
+        <div class="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm">
+          <div class="text-xs uppercase tracking-wider font-semibold text-slate-500 mb-1">
+            Total de Itens Recomendados
+          </div>
+          <div class="text-3xl font-extrabold text-slate-900" id="kpiTotalCargo">
+            0,00
+          </div>
+          <div class="mt-3 text-xs text-slate-500">
+            Soma de todas as unidades/lotes que cabem no container
+          </div>
+        </div>
+
+        <!-- Status da Resolução -->
+        <div class="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm">
+          <div class="text-xs uppercase tracking-wider font-semibold text-slate-500 mb-1">
+            Status do Cálculo
+          </div>
+          <div class="flex items-center space-x-2 mt-1">
+            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block" id="statusBadgeDot"></span>
+            <span class="text-lg font-bold text-slate-900" id="statusBadgeText">Ótimo</span>
+          </div>
+          <div class="mt-2 text-xs text-slate-500 truncate" id="statusBadgeDesc">
+            Melhor combinação encontrada com sucesso!
+          </div>
+        </div>
+      </div>
+
+      <!-- Alertas Especiais -->
+      <div id="specialAlertBox" class="hidden p-4 rounded-xl border text-xs"></div>
+
+      <!-- O que colocar no container (Recomendação Prática) -->
+      <div class="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-4 flex items-center gap-2">
+          <span>📦</span>
+          <span>Quantidade Recomendada para Colocar no Container</span>
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="cargoCardsContainer">
+          <!-- Renderizado via JS -->
+        </div>
+      </div>
+
+      <!-- Aproveitamento do Container e Espaço Sobrando -->
+      <div class="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-4 flex items-center gap-2">
+          <span>📊</span>
+          <span>Ocupação do Container &amp; Capacidade Livre (Variáveis de Folga S<sub>i</sub>)</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="utilizationContainer">
+          <!-- Renderizado via JS -->
+        </div>
+      </div>
+
+      <!-- 3. Inspetor Visual do Passo a Passo (Simplex Acadêmico) -->
+      <div class="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-4">
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-base">🔬</div>
+            <div>
+              <h3 class="font-bold text-sm md:text-base text-slate-900">
+                3. Inspetor Passo a Passo dos Cálculos (Tabela Simplex)
+              </h3>
+              <p class="text-xs text-slate-500">
+                Veja como a matemática testou e trocou as cargas em cada rodada até chegar na melhor solução.
+              </p>
+            </div>
+          </div>
+
+          <!-- Stepper de Iterações -->
+          <div class="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl overflow-x-auto" id="stepperContainer">
+            <!-- Botões das iterações gerados dinamicamente -->
+          </div>
+        </div>
+
+        <!-- Explicação em Linguagem Simples -->
+        <div class="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-4 text-xs text-slate-800 space-y-1.5" id="iterationExplanationBox">
+          <div class="font-bold text-indigo-700 flex items-center flex-wrap gap-2" id="explanationTitle">
+            <span>Passo do Cálculo</span>
+          </div>
+          <p id="explanationText" class="text-slate-600 leading-relaxed">
+            Selecione uma rodada para ver o estado das contas matemáticas.
+          </p>
+        </div>
+
+        <!-- Matriz Interativa -->
+        <div class="overflow-x-auto border border-slate-200 rounded-xl shadow-2xs">
+          <table class="w-full text-center border-collapse text-xs font-mono" id="tableauTable">
+            <thead id="tableauThead" class="bg-slate-50 border-b border-slate-200">
+              <!-- Cabeçalhos -->
+            </thead>
+            <tbody id="tableauTbody" class="divide-y divide-slate-200/80 bg-white">
+              <!-- Matriz -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Legenda -->
+        <div class="flex flex-wrap items-center gap-5 text-xs text-slate-600 pt-1">
+          <div class="flex items-center space-x-2">
+            <span class="w-3.5 h-3.5 rounded bg-amber-500 inline-block shadow-xs"></span>
+            <span><strong>Célula Pivô:</strong> Encontro da carga que entra com o limite que sai</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="w-3.5 h-3.5 rounded bg-blue-500/15 border border-blue-500/50 inline-block"></span>
+            <span><strong>Coluna Pivô:</strong> Carga que mais dá lucro na rodada</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="w-3.5 h-3.5 rounded bg-amber-500/15 border border-amber-500/40 inline-block"></span>
+            <span><strong>Linha Pivô:</strong> Limite do container que esgota primeiro</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="mt-8 pt-4 border-t border-slate-200 text-center text-xs text-slate-500">
+    PDA Containers Logistics Optimization Engine &bull; Planejamento de Cargas em Containers
+  </footer>
+
+  <!-- Modal de Importação / Exportação JSON -->
+  <div id="jsonModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div class="flex items-center space-x-2">
+          <span class="text-lg">📁</span>
+          <h3 class="font-bold text-base text-slate-900">Importar ou Exportar Dados (JSON)</h3>
+        </div>
+        <button id="btnCloseJsonModal" class="text-slate-400 hover:text-slate-700 font-bold text-lg px-2">✕</button>
+      </div>
+
+      <p class="text-xs text-slate-500">
+        Cole aqui os dados do arquivo <code class="bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-700">modelo_dados_pda.json</code> ou copie os dados atuais para salvar.
+      </p>
+
+      <textarea
+        id="jsonTextarea"
+        rows="12"
+        class="w-full modern-input p-3 font-mono text-xs text-slate-800"
+        placeholder="Cole o JSON com o cenário aqui..."
+      ></textarea>
+
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200">
+        <div class="flex items-center space-x-2">
+          <button
+            id="btnCopyJson"
+            class="px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors"
+          >
+            📋 Copiar Dados Atuais
+          </button>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button
+            id="btnCancelJson"
+            class="px-3.5 py-2 text-xs font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            id="btnApplyJson"
+            class="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-md shadow-blue-500/20"
+          >
+            Aplicar Dados no Sistema
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Motor Matemático Simplex e Lógica da Tela -->
+  <script>
+    const EPSILON = 1e-7;
+
+    // Estado Atual do Sistema
+    let state = {
+      variables: [
+        { code: 'X1', name: 'Maquinário Pesado', profit: 2800, unit: 'unid' },
+        { code: 'X2', name: 'Peças Automotivas', profit: 1400, unit: 'paletes' },
+        { code: 'X3', name: 'Eletrônicos & Chips', profit: 3200, unit: 'lotes' },
+        { code: 'X4', name: 'Têxteis e Roupas', profit: 1900, unit: 'fardos' }
+      ],
+      constraints: [
+        { slackCode: 'S1', name: 'Peso Máximo (Payload)', rhs: 26.5, unit: 'toneladas' },
+        { slackCode: 'S2', name: 'Volume do Container (Espaço)', rhs: 76.0, unit: 'm³' },
+        { slackCode: 'S3', name: 'Pontos de Amarração (Peação)', rhs: 120.0, unit: 'pontos' }
+      ],
+      technologyMatrix: [
+        [4.5, 1.8, 1.2, 0.8], // Peso gasto por cada unidade
+        [6.0, 5.5, 8.0, 7.2], // Volume gasto por cada unidade
+        [20.0, 10.0, 12.0, 8.0] // Amarração gasta por cada unidade
+      ],
+      result: null,
+      selectedIterationIndex: 0
+    };
+
+    // Cenário Padrão de Exemplo (Container 40 pés High Cube)
+    const BENCHMARK_40FT = {
+      variables: [
+        { code: 'X1', name: 'Maquinário Pesado', profit: 2800, unit: 'unid' },
+        { code: 'X2', name: 'Peças Automotivas', profit: 1400, unit: 'paletes' },
+        { code: 'X3', name: 'Eletrônicos & Chips', profit: 3200, unit: 'lotes' },
+        { code: 'X4', name: 'Têxteis e Roupas', profit: 1900, unit: 'fardos' }
+      ],
+      constraints: [
+        { slackCode: 'S1', name: 'Peso Máximo (Payload)', rhs: 26.5, unit: 'toneladas' },
+        { slackCode: 'S2', name: 'Volume do Container (Espaço)', rhs: 76.0, unit: 'm³' },
+        { slackCode: 'S3', name: 'Pontos de Amarração (Peação)', rhs: 120.0, unit: 'pontos' }
+      ],
+      technologyMatrix: [
+        [4.5, 1.8, 1.2, 0.8],
+        [6.0, 5.5, 8.0, 7.2],
+        [20.0, 10.0, 12.0, 8.0]
+      ]
+    };
+
+    // Motor Simplex Puro (Sem bibliotecas externas)
+    function solveSimplex(scenario) {
+      const startTime = performance.now();
+      const numVars = scenario.variables.length;
+      const numConstraints = scenario.constraints.length;
+      const totalCols = numVars + numConstraints + 1;
+      const totalRows = numConstraints + 1;
+
+      const colHeaders = [
+        ...scenario.variables.map(v => v.code),
+        ...scenario.constraints.map(c => c.slackCode),
+        'RHS'
+      ];
+
+      const matrix = Array.from({ length: totalRows }, () => new Array(totalCols).fill(0));
+      const basicVars = ['Z'];
+
+      // Linha 0 (Lucros das cargas): -c_j
+      for (let j = 0; j < numVars; j++) {
+        matrix[0][j] = -scenario.variables[j].profit;
+      }
+      matrix[0][totalCols - 1] = 0;
+
+      // Linhas das Restrições do Container
+      for (let i = 0; i < numConstraints; i++) {
+        const row = i + 1;
+        basicVars[row] = scenario.constraints[i].slackCode;
+        for (let j = 0; j < numVars; j++) {
+          matrix[row][j] = scenario.technologyMatrix[i][j];
+        }
+        for (let s = 0; s < numConstraints; s++) {
+          matrix[row][numVars + s] = (i === s) ? 1.0 : 0.0;
+        }
+        matrix[row][totalCols - 1] = scenario.constraints[i].rhs;
+      }
+
+      const iterations = [];
+      let iter = 0;
+      let status = 'Optimal';
+      let statusDesc = 'Melhor combinação encontrada com sucesso!';
+      let isUnbounded = false;
+      let hasMultipleOptimal = false;
+      let alternateVars = [];
+
+      while (iter < 50) {
+        // Passo 1: Regra de Dantzig (Qual carga traz mais lucro no momento)
+        let enteringCol = -1;
+        let mostNegative = -EPSILON;
+
+        for (let j = 0; j < totalCols - 1; j++) {
+          if (matrix[0][j] < mostNegative) {
+            mostNegative = matrix[0][j];
+            enteringCol = j;
+          }
+        }
+
+        // Se nenhuma carga puder aumentar o lucro, chegamos na solução ótima!
+        if (enteringCol === -1) {
+          iterations.push({
+            iterationNumber: iter,
+            tableau: snapshot(matrix, basicVars, colHeaders),
+            hasPivot: false,
+            pivotRow: -1,
+            pivotCol: -1,
+            pivotVal: 0,
+            enteringVar: '',
+            leavingVar: '',
+            ratios: [],
+            explanation: `Solução Ótima Atingida na rodada ${iter}! Todas as combinações possíveis foram testadas e nenhuma outra carga consegue aumentar o lucro sem estourar o container.`
+          });
+          break;
+        }
+
+        // Passo 2: Teste da Razão Mínima (Qual limite do container vai apertar primeiro)
+        let leavingRow = -1;
+        let minRatio = Infinity;
+        const ratios = [];
+
+        for (let i = 1; i < totalRows; i++) {
+          const denom = matrix[i][enteringCol];
+          const rhs = matrix[i][totalCols - 1];
+
+          if (denom > EPSILON) {
+            const ratio = rhs / denom;
+            ratios.push(ratio);
+            if (ratio < minRatio - EPSILON) {
+              minRatio = ratio;
+              leavingRow = i;
+            }
+          } else {
+            ratios.push(null);
+          }
+        }
+
+        if (leavingRow === -1) {
+          isUnbounded = true;
+          status = 'Unbounded';
+          statusDesc = `Aviso: A carga '${colHeaders[enteringCol]}' não possui limites de peso ou volume cadastrados.`;
+          iterations.push({
+            iterationNumber: iter,
+            tableau: snapshot(matrix, basicVars, colHeaders),
+            hasPivot: false,
+            pivotRow: -1,
+            pivotCol: enteringCol,
+            pivotVal: 0,
+            enteringVar: colHeaders[enteringCol],
+            leavingVar: '',
+            ratios,
+            explanation: statusDesc
+          });
+          break;
+        }
+
+        const pivotVal = matrix[leavingRow][enteringCol];
+        const enteringVar = colHeaders[enteringCol];
+        const leavingVar = basicVars[leavingRow];
+
+        iterations.push({
+          iterationNumber: iter,
+          tableau: snapshot(matrix, basicVars, colHeaders),
+          hasPivot: true,
+          pivotRow: leavingRow,
+          pivotCol: enteringCol,
+          pivotVal: pivotVal,
+          enteringVar: enteringVar,
+          leavingVar: leavingVar,
+          ratios: ratios,
+          explanation: `Rodada ${iter + 1}: Entra a carga '${enteringVar}' (maior ganho financeiro) e sai a folga '${leavingVar}' (limite mais apertado, razão máxima = ${minRatio.toFixed(2)} unidades). Célula Pivô = ${pivotVal.toFixed(2)}.`
+        });
+
+        // Passo 3: Operações de Linha (Gauss-Jordan)
+        for (let c = 0; c < totalCols; c++) {
+          matrix[leavingRow][c] /= pivotVal;
+        }
+
+        for (let r = 0; r < totalRows; r++) {
+          if (r !== leavingRow) {
+            const factor = matrix[r][enteringCol];
+            if (Math.Abs ? Math.Abs(factor) > EPSILON : Math.abs(factor) > EPSILON) {
+              for (let c = 0; c < totalCols; c++) {
+                matrix[r][c] -= factor * matrix[leavingRow][c];
+                if (Math.abs(matrix[r][c]) < EPSILON) matrix[r][c] = 0;
+              }
+            }
+          }
+        }
+
+        basicVars[leavingRow] = enteringVar;
+        iter++;
+      }
+
+      // Verificação de Múltiplas Soluções Ótimas
+      if (status === 'Optimal') {
+        for (let j = 0; j < totalCols - 1; j++) {
+          const cName = colHeaders[j];
+          const isBasic = basicVars.slice(1).includes(cName);
+          if (!isBasic && Math.abs(matrix[0][j]) < EPSILON) {
+            hasMultipleOptimal = true;
+            alternateVars.push(cName);
+          }
+        }
+        if (hasMultipleOptimal) {
+          status = 'MultipleOptimal';
+          statusDesc = `Existem outras combinações de carga alternativas que dão exatamente o mesmo lucro máximo!`;
+        }
+      }
+
+      const optimalProfit = Math.max(0, matrix[0][totalCols - 1]);
+      const solution = {};
+      colHeaders.slice(0, totalCols - 1).forEach(c => solution[c] = 0);
+      for (let i = 1; i < totalRows; i++) {
+        solution[basicVars[i]] = matrix[i][totalCols - 1];
+      }
+
+      const allocations = scenario.variables.map(v => {
+        const qty = solution[v.code] || 0;
+        return {
+          code: v.code,
+          name: v.name,
+          quantity: Math.max(0, qty),
+          profit: v.profit,
+          totalContrib: Math.round(qty * v.profit * 100) / 100,
+          unit: v.unit
+        };
+      });
+
+      const utilizations = scenario.constraints.map(c => {
+        const slack = solution[c.slackCode] || 0;
+        const consumed = Math.max(0, c.rhs - slack);
+        const pct = c.rhs > 0 ? (consumed / c.rhs) * 100 : 0;
+        return {
+          slackCode: c.slackCode,
+          name: c.name,
+          totalCapacity: c.rhs,
+          consumed: Math.round(consumed * 100) / 100,
+          slackRemaining: Math.round(slack * 100) / 100,
+          percentage: Math.round(pct * 10) / 10,
+          unit: c.unit,
+          isBottleneck: slack < EPSILON
+        };
+      });
+
+      const duration = performance.now() - startTime;
+
+      return {
+        status,
+        statusDesc,
+        optimalProfit,
+        allocations,
+        utilizations,
+        isUnbounded,
+        hasMultipleOptimal,
+        alternateVars,
+        iterations,
+        executionTimeMs: duration
+      };
+    }
+
+    function snapshot(matrix, basicVars, colHeaders) {
+      return {
+        colHeaders: [...colHeaders],
+        basicVars: [...basicVars],
+        matrix: matrix.map(r => r.map(v => Math.round(v * 1000) / 1000))
+      };
+    }
+
+    // Renderização dos Formulários de Carga (Tabela 1)
+    function renderVariableRows() {
+      const tbody = document.getElementById('tbodyVariables');
+      tbody.innerHTML = '';
+
+      state.variables.forEach((v, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition-colors group';
+        tr.innerHTML = `
+          <td class="py-3 px-4">
+            <span class="inline-flex items-center justify-center font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
+              ${v.code}
+            </span>
+          </td>
+          <td class="py-3 px-4">
+            <input
+              type="text"
+              value="${v.name}"
+              data-idx="${idx}"
+              placeholder="Ex: Maquinário Pesado"
+              class="var-name-input modern-input w-full px-3 py-2 text-xs font-medium text-slate-800"
+            >
+          </td>
+          <td class="py-3 px-4">
+            <div class="flex items-center">
+              <span class="inline-flex items-center px-2.5 py-2 rounded-l-lg border border-r-0 border-slate-300 bg-slate-100 text-slate-600 font-mono font-semibold text-xs">
+                R$
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="50"
+                value="${v.profit}"
+                data-idx="${idx}"
+                class="var-profit-input modern-input !rounded-l-none w-full px-3 py-2 font-mono font-semibold text-xs text-slate-900"
+              >
+            </div>
+          </td>
+          <td class="py-3 px-4">
+            <input
+              type="text"
+              value="${v.unit}"
+              data-idx="${idx}"
+              class="var-unit-input modern-input w-28 px-2.5 py-1.5 text-center font-medium text-xs text-slate-600"
+              title="Unidade de medida (ex: unid, paletes, lotes, fardos)"
+            >
+          </td>
+          <td class="py-3 px-4 text-center">
+            <button
+              data-idx="${idx}"
+              title="Remover carga"
+              class="btn-remove-var inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors font-bold ${state.variables.length <= 1 ? 'opacity-30 pointer-events-none' : ''}"
+            >
+              ✕
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      tbody.querySelectorAll('.var-name-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+          const idx = parseInt(e.target.dataset.idx);
+          state.variables[idx].name = e.target.value;
+          renderConstraintsTable();
+        });
+      });
+      tbody.querySelectorAll('.var-profit-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+          const idx = parseInt(e.target.dataset.idx);
+          state.variables[idx].profit = parseFloat(e.target.value) || 0;
+        });
+      });
+      tbody.querySelectorAll('.var-unit-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+          const idx = parseInt(e.target.dataset.idx);
+          state.variables[idx].unit = e.target.value || 'unid';
+        });
+      });
+      tbody.querySelectorAll('.btn-remove-var').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const idx = parseInt(e.currentTarget.dataset.idx);
+          removeVariable(idx);
+        });
+      });
+    }
+
+    // Renderização dos Limites do Container e Matriz Tecnológica (Tabela 2)
+    function renderConstraintsTable() {
+      const thead = document.getElementById('theadConstraints');
+      const tbody = document.getElementById('tbodyConstraints');
+
+      let headHtml = `
+        <tr class="text-slate-600 uppercase tracking-wider text-[11px] font-semibold">
+          <th class="py-3 px-4 w-24">Folga</th>
+          <th class="py-3 px-4 min-w-[200px]">Limite do Container</th>
+      `;
+      state.variables.forEach(v => {
+        headHtml += `
+          <th class="py-3 px-2.5 text-center">
+            <span class="inline-block font-mono font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md text-[11px]">${v.code}</span>
+            <span class="block text-[10px] font-medium normal-case text-slate-500 mt-1 truncate max-w-[90px] mx-auto" title="${v.name}">${v.name}</span>
+          </th>
+        `;
+      });
+      headHtml += `
+          <th class="py-3 px-2 text-center w-16">Sinal</th>
+          <th class="py-3 px-4 text-right w-56">Capacidade Máxima</th>
+          <th class="py-3 px-4 text-center w-20">Remover</th>
+        </tr>
+      `;
+      thead.innerHTML = headHtml;
+
+      tbody.innerHTML = '';
+      state.constraints.forEach((c, rIdx) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition-colors';
+        let rowHtml = `
+          <td class="py-3 px-4">
+            <span class="inline-flex items-center justify-center font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+              ${c.slackCode}
+            </span>
+          </td>
+          <td class="py-3 px-4">
+            <input
+              type="text"
+              value="${c.name}"
+              data-row="${rIdx}"
+              class="constraint-name-input modern-input w-full px-3 py-2 text-xs font-medium text-slate-800"
+            >
+          </td>
+        `;
+
+        state.variables.forEach((_, cIdx) => {
+          const val = state.technologyMatrix[rIdx]?.[cIdx] ?? 1.0;
+          rowHtml += `
+            <td class="py-3 px-2 text-center">
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value="${val}"
+                data-row="${rIdx}"
+                data-col="${cIdx}"
+                class="matrix-input modern-input w-20 text-center py-2 px-2 font-mono font-semibold text-xs text-slate-800"
+              >
+            </td>
+          `;
+        });
+
+        rowHtml += `
+          <td class="py-3 px-2 text-center">
+            <span class="inline-flex items-center justify-center w-7 h-7 rounded-md bg-slate-100 text-slate-600 font-mono font-bold text-xs border border-slate-200">
+              &le;
+            </span>
+          </td>
+          <td class="py-3 px-4 text-right">
+            <div class="inline-flex items-center justify-end">
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                value="${c.rhs}"
+                data-row="${rIdx}"
+                class="constraint-rhs-input modern-input !rounded-r-none w-24 text-right px-3 py-2 font-mono font-bold text-xs text-emerald-800"
+              >
+              <span class="inline-flex items-center justify-center px-2.5 py-2 rounded-r-lg border border-l-0 border-slate-300 bg-slate-100 text-slate-600 font-medium text-[11px] min-w-[72px]">
+                ${c.unit}
+              </span>
+            </div>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <button
+              data-row="${rIdx}"
+              title="Remover limite"
+              class="btn-remove-constraint inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors font-bold ${state.constraints.length <= 1 ? 'opacity-30 pointer-events-none' : ''}"
+            >
+              ✕
+            </button>
+          </td>
+        `;
+
+        tr.innerHTML = rowHtml;
+        tbody.appendChild(tr);
+      });
+
+      tbody.querySelectorAll('.constraint-name-input').forEach(input => {
+        input.addEventListener('change', e => {
+          const r = parseInt(e.target.dataset.row);
+          state.constraints[r].name = e.target.value;
+        });
+      });
+      tbody.querySelectorAll('.constraint-rhs-input').forEach(input => {
+        input.addEventListener('change', e => {
+          const r = parseInt(e.target.dataset.row);
+          state.constraints[r].rhs = parseFloat(e.target.value) || 0;
+        });
+      });
+      tbody.querySelectorAll('.matrix-input').forEach(input => {
+        input.addEventListener('change', e => {
+          const r = parseInt(e.target.dataset.row);
+          const c = parseInt(e.target.dataset.col);
+          state.technologyMatrix[r][c] = parseFloat(e.target.value) || 0;
+        });
+      });
+      tbody.querySelectorAll('.btn-remove-constraint').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const r = parseInt(e.currentTarget.dataset.row);
+          removeConstraint(r);
+        });
+      });
+    }
+
+    function addVariable() {
+      const idx = state.variables.length + 1;
+      state.variables.push({
+        code: `X${idx}`,
+        name: `Nova Carga ${idx}`,
+        profit: 1500,
+        unit: 'unid'
+      });
+      state.technologyMatrix.forEach(row => row.push(1.0));
+      renderVariableRows();
+      renderConstraintsTable();
+    }
+
+    function removeVariable(idx) {
+      if (state.variables.length <= 1) return;
+      state.variables.splice(idx, 1);
+      state.technologyMatrix.forEach(row => row.splice(idx, 1));
+      renderVariableRows();
+      renderConstraintsTable();
+    }
+
+    function addConstraint() {
+      const idx = state.constraints.length + 1;
+      state.constraints.push({
+        slackCode: `S${idx}`,
+        name: `Limite ${idx}`,
+        rhs: 50.0,
+        unit: 'unid'
+      });
+      state.technologyMatrix.push(new Array(state.variables.length).fill(1.0));
+      renderConstraintsTable();
+    }
+
+    function removeConstraint(rIdx) {
+      if (state.constraints.length <= 1) return;
+      state.constraints.splice(rIdx, 1);
+      state.technologyMatrix.splice(rIdx, 1);
+      renderConstraintsTable();
+    }
+
+    // Atualização dos Resultados na Tela
+    function updateResultsUI(result) {
+      state.result = result;
+      state.selectedIterationIndex = 0;
+
+      // 1. KPIs
+      document.getElementById('kpiOptimalProfit').textContent =
+        `R$ ${result.optimalProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      const totalCargo = result.allocations.reduce((sum, a) => sum + a.quantity, 0);
+      document.getElementById('kpiTotalCargo').textContent =
+        totalCargo.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+
+      document.getElementById('kpiSolverSpeed').innerHTML =
+        `<span>✓</span><span>Calculado em ${result.executionTimeMs.toFixed(2)} ms (${result.iterations.length} rodadas)</span>`;
+
+      // Status
+      const statusText = document.getElementById('statusBadgeText');
+      const statusDot = document.getElementById('statusBadgeDot');
+      const statusDesc = document.getElementById('statusBadgeDesc');
+
+      if (result.status === 'Optimal') {
+        statusText.textContent = 'Melhor Lucro (Ótimo)';
+        statusDot.className = 'w-3 h-3 rounded-full bg-emerald-500 inline-block ring-4 ring-emerald-500/20';
+        statusDesc.textContent = 'Combinação perfeita calculada sem estourar o container.';
+      } else if (result.status === 'MultipleOptimal') {
+        statusText.textContent = 'Outras Opções';
+        statusDot.className = 'w-3 h-3 rounded-full bg-amber-500 inline-block ring-4 ring-amber-500/20';
+        statusDesc.textContent = 'Existem outros produtos com o mesmo lucro equivalente.';
+      } else {
+        statusText.textContent = result.status;
+        statusDot.className = 'w-3 h-3 rounded-full bg-red-500 inline-block ring-4 ring-red-500/20';
+        statusDesc.textContent = result.statusDesc;
+      }
+
+      // Alertas
+      const alertBox = document.getElementById('specialAlertBox');
+      if (result.hasMultipleOptimal) {
+        alertBox.className = 'p-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-xs block';
+        alertBox.innerHTML = `<strong>Dica Operacional:</strong> As cargas [${result.alternateVars.join(', ')}] empataram em retorno financeiro. Você pode escolher qualquer uma delas que o lucro final continuará em R$ ${result.optimalProfit.toLocaleString('pt-BR')}.`;
+      } else if (result.isUnbounded) {
+        alertBox.className = 'p-4 rounded-xl border border-red-300 bg-red-50 text-red-900 text-xs block';
+        alertBox.innerHTML = `<strong>Atenção:</strong> Faltam limites de peso ou volume para travar a quantidade máxima de carga.`;
+      } else {
+        alertBox.className = 'hidden';
+      }
+
+      // 2. O que colocar no container
+      const cargoContainer = document.getElementById('cargoCardsContainer');
+      cargoContainer.innerHTML = '';
+      result.allocations.forEach(item => {
+        const div = document.createElement('div');
+        const isActive = item.quantity > 0;
+        div.className = `p-4 rounded-xl border transition-all ${
+          isActive
+            ? 'border-blue-300 bg-gradient-to-b from-blue-50/70 to-white shadow-sm ring-1 ring-blue-500/10'
+            : 'border-slate-200 bg-slate-50/60 opacity-65'
+        }`;
+        div.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-mono font-bold text-xs px-2.5 py-0.5 rounded-md ${isActive ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'}">${item.code}</span>
+            <span class="text-[11px] font-medium text-slate-500">R$ ${item.profit.toLocaleString('pt-BR')}/${item.unit}</span>
+          </div>
+          <div class="font-bold text-xs text-slate-800 truncate" title="${item.name}">${item.name}</div>
+          <div class="mt-3 pt-3 border-t border-slate-200/70 flex items-baseline justify-between">
+            <div>
+              <span class="text-2xl font-extrabold ${isActive ? 'text-blue-600' : 'text-slate-400'}">${item.quantity.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}</span>
+              <span class="text-xs font-medium text-slate-500 ml-1">${item.unit}</span>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 block">Lucro Gerado</span>
+              <span class="text-xs font-bold ${isActive ? 'text-emerald-600' : 'text-slate-400'}">R$ ${item.totalContrib.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+          </div>
+        `;
+        cargoContainer.appendChild(div);
+      });
+
+      // 3. Ocupação do container e espaço sobrando (Cards limpos em Grid)
+      const utilContainer = document.getElementById('utilizationContainer');
+      utilContainer.innerHTML = '';
+      result.utilizations.forEach(res => {
+        const div = document.createElement('div');
+        const isFull = res.percentage >= 99.9;
+        div.className = `p-4 rounded-xl border ${isFull ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200 bg-slate-50/40'} space-y-2.5`;
+        div.innerHTML = `
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center space-x-2">
+              <span class="font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">${res.slackCode}</span>
+              <span class="font-bold text-slate-800">${res.name}</span>
+            </div>
+            ${
+              res.isBottleneck
+                ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">100% Ocupado</span>'
+                : `<span class="text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">${res.percentage.toFixed(1)}%</span>`
+            }
+          </div>
+          <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+            <div class="h-full transition-all duration-500 rounded-full ${isFull ? 'bg-gradient-to-r from-amber-500 to-red-500' : res.percentage > 85 ? 'bg-amber-500' : 'bg-blue-600'}" style="width: ${Math.min(res.percentage, 100)}%"></div>
+          </div>
+          <div class="flex justify-between text-[11px] text-slate-500 pt-0.5">
+            <span>Usado: <strong class="text-slate-700">${res.consumed.toLocaleString('pt-BR')} / ${res.totalCapacity} ${res.unit}</strong></span>
+            <span class="text-emerald-700 font-semibold">Folga (${res.slackCode}): ${res.slackRemaining.toLocaleString('pt-BR')} ${res.unit}</span>
+          </div>
+        `;
+        utilContainer.appendChild(div);
+      });
+
+      renderTableauStepper();
+      renderSelectedTableau();
+    }
+
+    function renderTableauStepper() {
+      const stepper = document.getElementById('stepperContainer');
+      stepper.innerHTML = '';
+
+      state.result.iterations.forEach((iter, idx) => {
+        const btn = document.createElement('button');
+        const isSelected = idx === state.selectedIterationIndex;
+        btn.className = `px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+          isSelected
+            ? 'bg-indigo-600 text-white shadow-xs'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+        }`;
+        btn.textContent = idx === 0 ? 'Início (Base 0)' : (idx === state.result.iterations.length - 1 ? 'Solução Final' : `Rodada ${idx}`);
+        btn.addEventListener('click', () => {
+          state.selectedIterationIndex = idx;
+          renderTableauStepper();
+          renderSelectedTableau();
+        });
+        stepper.appendChild(btn);
+      });
+    }
+
+    // Renderização da Tabela Simplex (Tabela 3)
+    function renderSelectedTableau() {
+      if (!state.result || !state.result.iterations) return;
+      const currentIter = state.result.iterations[state.selectedIterationIndex];
+      const { tableau, hasPivot, pivotRow, pivotCol, pivotVal, explanation, ratios } = currentIter;
+
+      document.getElementById('explanationTitle').innerHTML = `
+        <span class="text-xs font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-indigo-600 text-white">
+          ${hasPivot ? `Rodada ${currentIter.iterationNumber + 1}` : 'Solução Ótima Concluída'}
+        </span>
+        ${hasPivot ? `<span class="font-mono text-xs px-2.5 py-0.5 rounded-md bg-white border border-indigo-200 text-indigo-700 font-semibold shadow-2xs">Entra na base: <strong>${currentIter.enteringVar}</strong> &rarr; Sai da base: <strong>${currentIter.leavingVar}</strong></span>` : ''}
+      `;
+      document.getElementById('explanationText').textContent = explanation;
+
+      const thead = document.getElementById('tableauThead');
+      let theadHtml = `
+        <tr class="text-[11px] uppercase tracking-wider text-slate-600 font-bold">
+          <th class="py-3 px-4 text-left font-sans bg-slate-100/80 border-r border-slate-200">Base</th>
+      `;
+      tableau.colHeaders.forEach((col, cIdx) => {
+        const isEntering = hasPivot && cIdx === pivotCol;
+        const isRhs = col === 'RHS';
+        theadHtml += `
+          <th class="py-3 px-3 ${isEntering ? 'entering-col-highlight text-blue-700 font-extrabold' : isRhs ? 'bg-slate-100/70 text-slate-800 border-l border-slate-200' : ''}">
+            <span>${isRhs ? 'RHS (b)' : col}</span>
+            ${isEntering ? '<span class="block text-[10px] text-blue-600 font-sans mt-0.5">&darr; Entra</span>' : ''}
+          </th>
+        `;
+      });
+      if (hasPivot) {
+        theadHtml += '<th class="py-3 px-4 font-sans bg-amber-50/60 text-amber-800 border-l border-slate-200">Razão Limite (&theta;)</th>';
+      }
+      theadHtml += '</tr>';
+      thead.innerHTML = theadHtml;
+
+      const tbody = document.getElementById('tableauTbody');
+      tbody.innerHTML = '';
+
+      tableau.matrix.forEach((row, rIdx) => {
+        const tr = document.createElement('tr');
+        const isZRow = rIdx === 0;
+        const isPivotRow = hasPivot && rIdx === pivotRow;
+        const basicName = tableau.basicVars[rIdx] || (isZRow ? 'Z' : `L${rIdx}`);
+        const ratio = ratios ? ratios[rIdx - 1] : null;
+
+        if (isPivotRow) tr.className = 'leaving-row-highlight';
+        else if (isZRow) tr.className = 'bg-slate-50/90 font-bold border-b-2 border-slate-200';
+        else tr.className = 'hover:bg-slate-50/70 transition-colors';
+
+        const badgeStyle = isZRow
+          ? 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+          : isPivotRow
+          ? 'bg-amber-100 text-amber-800 border border-amber-300'
+          : basicName.startsWith('X')
+          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+          : 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+
+        let rowHtml = `
+          <td class="py-3 px-4 text-left font-sans font-bold border-r border-slate-200">
+            <div class="flex items-center space-x-1.5">
+              <span class="font-mono px-2.5 py-0.5 rounded-md text-xs ${badgeStyle}">
+                ${basicName}
+              </span>
+              ${isPivotRow ? '<span class="text-[10px] font-semibold text-amber-700">&larr; Sai</span>' : ''}
+            </div>
+          </td>
+        `;
+
+        row.forEach((val, cIdx) => {
+          const isPivotCell = isPivotRow && cIdx === pivotCol;
+          const isEnteringCol = hasPivot && cIdx === pivotCol;
+          const isRhsCol = cIdx === row.length - 1;
+
+          rowHtml += `
+            <td class="py-3 px-3 ${
+              isPivotCell
+                ? 'p-1.5'
+                : isEnteringCol
+                ? 'entering-col-highlight font-bold text-blue-700'
+                : isRhsCol
+                ? 'bg-slate-50/60 font-bold text-slate-900 border-l border-slate-200'
+                : isZRow && val < 0
+                ? 'text-rose-600 font-bold'
+                : 'text-slate-700'
+            }">
+              ${
+                isPivotCell
+                  ? `<span class="inline-block w-full py-1 px-2 pivot-highlight">${val.toFixed(2)}</span>`
+                  : val.toFixed(2)
+              }
+            </td>
+          `;
+        });
+
+        if (hasPivot) {
+          rowHtml += `
+            <td class="py-3 px-4 text-xs font-mono border-l border-slate-200 ${isPivotRow ? 'font-extrabold text-amber-800 bg-amber-100/50' : 'text-slate-500 bg-amber-50/20'}">
+              ${isZRow ? '—' : ratio !== null && ratio !== undefined ? `${ratio.toFixed(2)} ${isPivotRow ? '★' : ''}` : '—'}
+            </td>
+          `;
+        }
+
+        tr.innerHTML = rowHtml;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Modal de Importação / Exportação JSON
+    const modal = document.getElementById('jsonModal');
+    const textarea = document.getElementById('jsonTextarea');
+
+    function openJsonModal() {
+      const exportData = {
+        scenarioName: "Carregamento Otimizado - Container 40' High Cube",
+        variables: state.variables.map(v => ({
+          code: v.code,
+          name: v.name,
+          profitCoefficient: v.profit,
+          unit: v.unit
+        })),
+        constraints: state.constraints.map(c => ({
+          slackCode: c.slackCode,
+          name: c.name,
+          capacityRhs: c.rhs,
+          unit: c.unit
+        })),
+        technologyMatrix: state.technologyMatrix,
+        maxIterations: 50
+      };
+      textarea.value = JSON.stringify(exportData, null, 2);
+      modal.classList.remove('hidden');
+    }
+
+    function closeJsonModal() {
+      modal.classList.add('hidden');
+    }
+
+    document.getElementById('btnOpenJsonModal').addEventListener('click', openJsonModal);
+    document.getElementById('btnCloseJsonModal').addEventListener('click', closeJsonModal);
+    document.getElementById('btnCancelJson').addEventListener('click', closeJsonModal);
+
+    document.getElementById('btnCopyJson').addEventListener('click', () => {
+      navigator.clipboard.writeText(textarea.value).then(() => {
+        const btn = document.getElementById('btnCopyJson');
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copiado com Sucesso!';
+        setTimeout(() => { btn.textContent = orig; }, 2000);
+      });
+    });
+
+    document.getElementById('btnApplyJson').addEventListener('click', () => {
+      try {
+        const parsed = JSON.parse(textarea.value);
+        if (!parsed.variables || !parsed.constraints || !parsed.technologyMatrix) {
+          alert('Estrutura de JSON inválida. O arquivo precisa de variables, constraints e technologyMatrix.');
+          return;
+        }
+        state.variables = parsed.variables.map(v => ({
+          code: v.code,
+          name: v.name,
+          profit: v.profitCoefficient !== undefined ? v.profitCoefficient : (v.profit || 0),
+          unit: v.unit || 'unid'
+        }));
+        state.constraints = parsed.constraints.map(c => ({
+          slackCode: c.slackCode,
+          name: c.name,
+          rhs: c.capacityRhs !== undefined ? c.capacityRhs : (c.rhs || 0),
+          unit: c.unit || 'unid'
+        }));
+        state.technologyMatrix = parsed.technologyMatrix;
+
+        renderVariableRows();
+        renderConstraintsTable();
+        const res = solveSimplex(state);
+        updateResultsUI(res);
+        closeJsonModal();
+      } catch (err) {
+        alert('Erro ao interpretar o arquivo JSON: ' + err.message);
+      }
+    });
+
+    // Eventos dos Botões
+    document.getElementById('btnSolve').addEventListener('click', () => {
+      const res = solveSimplex(state);
+      updateResultsUI(res);
+    });
+
+    document.getElementById('btnPreset40ft').addEventListener('click', () => {
+      state.variables = JSON.parse(JSON.stringify(BENCHMARK_40FT.variables));
+      state.constraints = JSON.parse(JSON.stringify(BENCHMARK_40FT.constraints));
+      state.technologyMatrix = JSON.parse(JSON.stringify(BENCHMARK_40FT.technologyMatrix));
+      renderVariableRows();
+      renderConstraintsTable();
+      const res = solveSimplex(state);
+      updateResultsUI(res);
+    });
+
+    document.getElementById('btnAddVariable').addEventListener('click', addVariable);
+    document.getElementById('btnAddConstraint').addEventListener('click', addConstraint);
+
+    // Inicialização da Tela
+    renderVariableRows();
+    renderConstraintsTable();
+    const initialRes = solveSimplex(state);
+    updateResultsUI(initialRes);
+  </script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+{
+  "scenarioName": "Carregamento Otimizado - Container 40' High Cube",
+  "variables": [
+    {
+      "code": "X1",
+      "name": "Maquinário Pesado Industrial",
+      "profitCoefficient": 2800.0,
+      "unit": "unid"
+    },
+    {
+      "code": "X2",
+      "name": "Peças Automotivas em Paletes",
+      "profitCoefficient": 1400.0,
+      "unit": "paletes"
+    },
+    {
+      "code": "X3",
+      "name": "Eletrônicos e Componentes",
+      "profitCoefficient": 3200.0,
+      "unit": "lotes"
+    },
+    {
+      "code": "X4",
+      "name": "Têxteis e Roupas Premium",
+      "profitCoefficient": 1900.0,
+      "unit": "fardos"
+    }
+  ],
+  "constraints": [
+    {
+      "slackCode": "S1",
+      "name": "Peso Máximo de Carga (Payload)",
+      "capacityRhs": 26.5,
+      "unit": "toneladas"
+    },
+    {
+      "slackCode": "S2",
+      "name": "Volume Interno Útil (Espaço)",
+      "capacityRhs": 76.0,
+      "unit": "m³"
+    },
+    {
+      "slackCode": "S3",
+      "name": "Capacidade de Amarração (Peação)",
+      "capacityRhs": 120.0,
+      "unit": "pontos"
+    }
+  ],
+  "technologyMatrix": [
+    [4.5, 1.8, 1.2, 0.8],
+    [6.0, 5.5, 8.0, 7.2],
+    [20.0, 10.0, 12.0, 8.0]
+  ],
+  "maxIterations": 50
+}
